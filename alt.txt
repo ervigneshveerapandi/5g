@@ -1,0 +1,257 @@
+//qpsk
+#include <iostream>
+#include <string>
+#include <bitset>
+using namespace std;
+// Simulated PSS decoding
+int decode_pss(const string& signal) {
+cout << "[PSS] Decoding Primary Synchronization Signal..." << endl;
+int nid2 = stoi(signal.substr(0, 2)); // Simulated NID2 (0–2)
+cout << "[PSS] NID2 (3 LSBs of NCellID): " << nid2 << endl;
+return nid2;
+}
+// Simulated SSS decoding
+int decode_sss(const string& signal) {
+cout << "[SSS] Decoding Secondary Synchronization Signal..." << endl;
+int nid1 = stoi(signal.substr(2, 2)); // Simulated NID1 (0–335)
+cout << "[SSS] NID1 (Remaining bits of NCellID): " << nid1 << endl;
+return nid1;
+}
+// Simulated PBCH decoding
+string decode_pbch(const string& signal) {
+cout << "[PBCH] Decoding Physical Broadcast Channel..." << endl;
+string mib_bits = signal.substr(4, 24); // Simulated 24-bit MIB payload
+cout << "[PBCH] Extracted MIB bits: " << mib_bits << endl;
+return mib_bits;
+}
+// Decode MIB Fields
+void decode_mib_fields(const string& mib_bits) {
+cout << "[MIB] Decoding Master Information Block Fields..." << endl;
+if (mib_bits.size() != 24 || mib_bits.find_first_not_of("01") != string::npos) {
+cerr << "[ERROR] Invalid MIB bits. Must be exactly 24 binary digits (0 or 1)." << endl;
+return;
+}bitset<24> mib(mib_bits);
+int systemFrameNumber = (mib.to_ulong() >> 18) & 0x3F; // Bits 0-5
+int subCarrierSpacing = (mib.to_ulong() >> 16) & 0x03; // Bits 6-7
+int ssbSubCarrierOffset = (mib.to_ulong() >> 12) & 0x0F; // Bits 8-11
+int dmrsTypeAposition = (mib.to_ulong() >> 11) & 0x01; // Bit 12
+int controlResourceSetZero = (mib.to_ulong() >> 7) & 0x0F; // Bits 13-16
+int searchSpaceZero = (mib.to_ulong() >> 3) & 0x0F; // Bits 17-20
+int cellBarred = (mib.to_ulong() >> 2) & 0x01; // Bit 21
+int intraFreqResel = (mib.to_ulong() >> 1) & 0x01; // Bit 22
+int spare = mib.to_ulong() & 0x01; // Bit 23
+cout << "\n===== Decoded MIB Fields =====" << endl;
+cout << "System Frame Number (SFN): " << systemFrameNumber << " (Identifies frame timing)" << endl;
+cout << "SubCarrier Spacing Common: " << subCarrierSpacing << " (0:15kHz, 1:30kHz, etc.)" << endl;
+cout << "SSB SubCarrier Offset: " << ssbSubCarrierOffset << " (Offset for SSB from carrier)" << endl;
+cout << "DMRS Type-A Position: " << dmrsTypeAposition << " (0: position 2, 1: position 3)" << endl;
+cout << "Control Resource Set 0 Index: " << controlResourceSetZero << " (CORESET0 Index)" << endl;
+cout << "Search Space 0 Index: " << searchSpaceZero << " (SS0 Index)" << endl;
+cout << "Cell Barred: " << cellBarred << " (0: Allowed, 1: Barred)" << endl;
+cout << "Intra Frequency Reselection: " << intraFreqResel << " (0: Allowed, 1: Not Allowed)" << endl;
+cout << "Spare (reserved): " << spare << endl;
+cout << "================================\n" << endl;
+}
+int main() {
+cout << "\n=== SSB Decoding Simulation in 5G ===" << endl;
+// Valid binary MIB bits (24 bits): "110011001100110011001100"
+string simulated_signal = "0102110011001100110011001100"; // Total: 28 characters
+// PSS decoding
+int nid2 = decode_pss(simulated_signal);
+// SSS decoding
+int nid1 = decode_sss(simulated_signal);
+int ncellid = nid1 * 3 + nid2;
+cout << "[INFO] NCellID = " << ncellid << "\n" << endl;
+// PBCH decoding
+string mib_bits = decode_pbch(simulated_signal);
+// MIB field decoding
+decode_mib_fields(mib_bits);
+cout << "[SIM] SSB Decoding Complete." << endl;
+return 0;
+}
+
+
+//ssb
+#include <bits/stdc++.h>
+#define MAX_BITS 8
+using namespace std;
+void printBits(const string& label, const int bits[], int size) {
+cout << label << ": ";
+for (int i = 0; i < size; i++) {
+cout << bits[i] << " ";
+}
+cout << "\n";
+}
+void printComplexArray(const string& label, complex<double> arr[], int size) {
+cout << label << ":\n";
+for (int i = 0; i < size; i++) {
+cout << "Symbol " << i << ": (" << arr[i].real() << ", " << arr[i].imag() << ")\n";
+}
+cout << endl;
+}
+void modulate(int scrambled[MAX_BITS], complex<double> modulated[MAX_BITS / 4]) {
+for (int i = 0; i < MAX_BITS; i += 4) {
+int b1 = scrambled[i];
+int b2 = scrambled[i + 1];
+int b3 = scrambled[i + 2];
+int b4 = scrambled[i + 3];
+// Real part mapping (Gray-coded)
+int real = (b1 == 0) ? (b2 == 0 ? -3 : -1) : (b2 == 0 ? 3 : 1);
+// Imag part mapping (Gray-coded)
+int imag = (b3 == 0) ? (b4 == 0 ? -3 : -1) : (b4 == 0 ? 3 : 1);
+modulated[i / 4] = complex<double>(real, imag);
+}
+}
+void transmit(complex<double> tx[MAX_BITS / 4], complex<double> rx[MAX_BITS / 4], double noise_level
+= 0.00001) {
+for (int i = 0; i < (MAX_BITS / 4); i++) {
+double noise_real = ((double)rand() / RAND_MAX) * 2 * noise_level - noise_level;
+double noise_imag = ((double)rand() / RAND_MAX) * 2 * noise_level - noise_level;
+rx[i] = tx[i] + complex<double>(noise_real, noise_imag);
+}
+}
+void demodulate(complex<double> rx[MAX_BITS / 4], int decoded[MAX_BITS]) {
+for (int i = 0; i < (MAX_BITS / 4); i++) {
+double r = rx[i].real();
+double im = rx[i].imag();
+int real_level = (r < -2.0) ? -3 : (r < 0 ? -1 : (r < 2.0 ? 1 : 3));
+int imag_level = (im < -2.0) ? -3 : (im < 0 ? -1 : (im < 2.0 ? 1 : 3));
+// Real → bits
+if (real_level == -3) { decoded[i * 4] = 0; decoded[i * 4 + 1] = 0; }
+else if (real_level == -1) { decoded[i * 4] = 0; decoded[i * 4 + 1] = 1; }
+else if (real_level == 3) { decoded[i * 4] = 1; decoded[i * 4 + 1] = 0; }
+else { decoded[i * 4] = 1; decoded[i * 4 + 1] = 1; }
+if (imag_level == -3) { decoded[i * 4 + 2] = 0; decoded[i * 4 + 3] = 0; }
+else if (imag_level == -1) { decoded[i * 4 + 2] = 0; decoded[i * 4 + 3] = 1; }
+else if (imag_level == 3) { decoded[i * 4 + 2] = 1; decoded[i * 4 + 3] = 0; }
+else { decoded[i * 4 + 2] = 1; decoded[i * 4 + 3] = 1; }
+}
+}
+void descramble(int PN_seq[MAX_BITS], int decoded[MAX_BITS], int descrambled[MAX_BITS]) {
+for (int i = 0; i < MAX_BITS; i++) {
+descrambled[i] = PN_seq[i] ^ decoded[i];
+}
+}
+int main() {
+srand(time(NULL));
+int PN[MAX_BITS][3];
+PN[0][0] = 1; PN[0][1] = 0; PN[0][2] = 1;
+for (int i = 1; i < MAX_BITS; i++) {
+PN[i][0] = PN[i - 1][1] ^ PN[i - 1][2];
+PN[i][1] = PN[i - 1][0];
+PN[i][2] = PN[i - 1][1];
+}
+int PN_seq[MAX_BITS];
+for (int i = 0; i < MAX_BITS; i++) {
+PN_seq[i] = PN[i][2];
+}
+int data[MAX_BITS] = {1, 0, 1, 1, 1, 1, 1, 0};
+int scrambled[MAX_BITS];
+for (int i = 0; i < MAX_BITS; i++) {
+scrambled[i] = data[i] ^ PN_seq[i];
+}
+complex<double> modulated[MAX_BITS / 4];
+modulate(scrambled, modulated);
+complex<double> received[MAX_BITS / 4];
+transmit(modulated, received);
+int decoded[MAX_BITS];
+demodulate(received, decoded);
+int descrambled[MAX_BITS];
+descramble(PN_seq, decoded, descrambled);
+cout << "=== Communication System Stages ===\n\n";
+printBits("Original Data ", data, MAX_BITS);
+printBits("PN Sequence ", PN_seq, MAX_BITS);
+printBits("Scrambled Data ", scrambled, MAX_BITS);
+cout << "\n";
+printComplexArray("Modulated Symbols ", modulated, MAX_BITS / 4);
+printComplexArray("Received Symbols ", received, MAX_BITS / 4);
+printBits("Decoded Bits ", decoded, MAX_BITS);
+printBits("Descrambled Output", descrambled, MAX_BITS);
+bool success = equal(begin(data), end(data), begin(descrambled));
+cout << "\nTransmission " << (success ? "successful ◻ " : "failed ◻") << endl;
+return 0;
+}
+
+//16qam
+#include <iostream>
+#include <vector>
+#include <complex>
+#include <cstdlib>
+#include <ctime>
+using namespace std;
+// Step 1: Generate dummy data (even number of bits for QPSK)
+vector<int> generate_bits(int num_bits) {
+vector<int> bits;
+srand(time(0));
+for (int i = 0; i < num_bits; ++i) {
+bits.push_back(rand() % 2); // 0 or 1
+}
+return bits;
+}
+// Step 2: QPSK modulation (2 bits -> 1 symbol)
+vector<complex<double>> modulate_qpsk(const vector<int>& bits) {
+vector<complex<double>> symbols;
+for (size_t i = 0; i < bits.size(); i += 2) {
+int b1 = bits[i];
+int b2 = bits[i+1];
+double real = (b1 == 0) ? -1.0 : 1.0;
+double imag = (b2 == 0) ? -1.0 : 1.0;
+symbols.push_back(complex<double>(real, imag));
+}
+return symbols;
+}
+// Step 3: Transmit with noise
+vector<complex<double>> transmit(const vector<complex<double>>& symbols, double
+noise_level = 0.3) {
+vector<complex<double>> received;
+for (auto s : symbols) {
+double noise_real = ((double)rand() / RAND_MAX) * 2 * noise_level - noise_level;
+double noise_imag = ((double)rand() / RAND_MAX) * 2 * noise_level - noise_level;
+received.push_back(s + complex<double>(noise_real, noise_imag));
+}
+return received;
+}
+// Step 4: QPSK Demodulation
+vector<int> demodulate_qpsk(const vector<complex<double>>& received) {
+vector<int> bits;
+for (auto r : received) {
+bits.push_back(r.real() >= 0 ? 1 : 0);
+bits.push_back(r.imag() >= 0 ? 1 : 0);
+}
+return bits;
+}
+// Step 5: Print Vector (helper)
+template <typename T>
+void print_vector(const vector<T>& vec, const string& label) {
+cout << label << ": ";
+for (auto val : vec) {
+cout << val << " ";
+}
+cout << "\n";
+}
+int main() {
+cout << "\n=== gNB PHY Layer Tx/Rx Simulation using QPSK ===\n";
+// Step-by-step simulation
+int num_bits = 10;
+if (num_bits % 2 != 0) num_bits++; // QPSK needs even bits
+cout << "Step 1: Generating random bits...\n";
+vector<int> bits = generate_bits(num_bits);
+print_vector(bits, "Original Bits");
+cout << "\nStep 2: Modulating using QPSK...\n";
+vector<complex<double>> modulated = modulate_qpsk(bits);
+print_vector(modulated, "QPSK Symbols");
+cout << "\nStep 3: Transmitting over channel with noise...\n";
+vector<complex<double>> received = transmit(modulated);
+print_vector(received, "Received Signal");
+cout << "\nStep 4: Demodulating at Receiver...\n";
+vector<int> decoded = demodulate_qpsk(received);
+print_vector(decoded, "Decoded Bits");
+// Compare original and decoded
+int errors = 0;
+for (size_t i = 0; i < bits.size(); ++i) {
+if (bits[i] != decoded[i]) errors++;
+}
+cout << "\nStep 5: Bit Error Count = " << errors << " / " << num_bits << "\n";
+cout << "Simulation Complete.\n";
+return 0;
+}
