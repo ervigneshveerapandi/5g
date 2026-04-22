@@ -1,4 +1,4 @@
-//qpsk
+//ssb
 #include <iostream>
 #include <string>
 #include <bitset>
@@ -71,7 +71,7 @@ return 0;
 }
 
 
-//ssb
+//16qam
 #include <bits/stdc++.h>
 #define MAX_BITS 8
 using namespace std;
@@ -172,7 +172,7 @@ cout << "\nTransmission " << (success ? "successful ◻ " : "failed ◻") << end
 return 0;
 }
 
-//16qam
+//16qam //qpsk
 #include <iostream>
 #include <vector>
 #include <complex>
