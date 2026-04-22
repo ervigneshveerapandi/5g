@@ -172,7 +172,7 @@ cout << "\nTransmission " << (success ? "successful ◻ " : "failed ◻") << end
 return 0;
 }
 
-//16qam //qpsk
+//qpsk
 #include <iostream>
 #include <vector>
 #include <complex>
